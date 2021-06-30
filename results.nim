@@ -446,14 +446,14 @@ func `==`*[E0, E1](lhs: Result[void, E0], rhs: Result[void, E1]): bool {.inline.
   else:
     lhs.e == rhs.e
 
-func get*[T: not void, E](self: Result[T, E]): T {.inline.} =
+func get*[T: not void, E](self: Result[T, E]): lent T {.inline.} =
   ## Fetch value of result if set, or raise Defect
   ## Exception bridge mode: raise given Exception instead
   ## See also: Option.get
   assertOk(self)
   self.v
 
-func tryGet*[T: not void, E](self: Result[T, E]): T {.inline.} =
+func tryGet*[T: not void, E](self: Result[T, E]): lent T {.inline.} =
   ## Fetch value of result if set, or raise
   ## When E is an Exception, raise that exception - otherwise, raise a ResultError[E]
   mixin raiseResultError
@@ -474,6 +474,13 @@ func get*[T, E](self: var Result[T, E]): var T {.inline.} =
   assertOk(self)
   self.v
 
+func unsafeGet*[T, E](self: Result[T, E]): lent T {.inline.} =
+  ## Fetch value of result if set, undefined behavior if unset
+  ## See also: Option.unsafeGet
+  assert self.o
+
+  self.v
+
 template `[]`*[T: not void, E](self: Result[T, E]): T =
   ## Fetch value of result if set, or raise Defect
   ## Exception bridge mode: raise given Exception instead
@@ -486,14 +493,7 @@ template `[]`*[T, E](self: var Result[T, E]): var T =
   mixin get
   self.get()
 
-template unsafeGet*[T, E](self: Result[T, E]): T =
-  ## Fetch value of result if set, undefined behavior if unset
-  ## See also: Option.unsafeGet
-  assert self.o
-
-  self.v
-
-func expect*[T: not void, E](self: Result[T, E], m: string): T =
+func expect*[T: not void, E](self: Result[T, E], m: string): lent T {.inline.} =
   ## Return value of Result, or raise a `Defect` with the given message - use
   ## this helper to extract the value when an error is not expected, for example
   ## because the program logic dictates that the operation should never fail
@@ -510,7 +510,7 @@ func expect*[T: not void, E](self: Result[T, E], m: string): T =
       raiseResultDefect(m)
   self.v
 
-func expect*[T: not void, E](self: var Result[T, E], m: string): var T =
+func expect*[T: not void, E](self: var Result[T, E], m: string): var T {.inline.} =
   if not self.o:
     when E isnot void:
       raiseResultDefect(m, self.e)
@@ -523,13 +523,19 @@ func `$`*(self: Result): string =
   if self.o: "Ok(" & $self.v & ")"
   else: "Err(" & $self.e & ")"
 
-func error*[T, E](self: Result[T, E]): E =
+func error*[T, E](self: Result[T, E]): lent E {.inline.} =
   ## Fetch error of result if set, or raise Defect
   if self.o:
     when T is not void:
       raiseResultDefect("Trying to access error when value is set", self.v)
     else:
       raiseResultDefect("Trying to access error when value is set")
+  self.e
+
+func unsafeError*[T, E](self: Result[T, E]): lent E {.inline.} =
+  ## Fetch value of error if set, undefined behavior if unset
+  assert not self.o
+
   self.e
 
 template value*[T, E](self: Result[T, E]): T =
